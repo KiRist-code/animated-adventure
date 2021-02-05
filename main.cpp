@@ -6,7 +6,7 @@ using namespace std;
 using namespace cv;
 
 Mat convertColor(Mat imager);
-void SneakRect(double dx,double dy, vector<Rect>br,vector<Rect>br2);
+void SneakRect(double dx,double dy, vector<Rect>br,vector<Rect>br2,double gd, Mat im3, Mat im);
 
 int main(int argc, const char * argv[]) {
     Mat image, image2, image3, drawing;
@@ -15,9 +15,12 @@ int main(int argc, const char * argv[]) {
     vector<Vec4i> hierarchy;
     
     double ratio, delta_x, delta_y, gradient;
-    int select, plate_width, friend_count = 0, refinery_count = 0;
+    int refinery_count = 0;
     
     image = imread("");
+    
+    image.copyTo(image2);
+    image.copyTo(image3);
     
     imshow("Original", image);
     waitKey(0);
@@ -51,7 +54,7 @@ int main(int argc, const char * argv[]) {
     imshow("Original -> Gray -> Canny -> Contours&Rectangles", drawing);
     waitKey(0);
     
-    SneakRect(delta_x = 0,delta_y = 0,boundRect,boundRect2);
+    SneakRect(delta_x = 0,delta_y = 0,boundRect,boundRect2,gradient, image3, image);
 }
 
 Mat convertColor(Mat imager){
@@ -66,22 +69,66 @@ Mat convertColor(Mat imager){
     return imager;
 }
 
-void SneakRect(double dx,double dy, vector<Rect>br,vector<Rect>br2) {
+void SneakRect(double dx,double dy, vector<Rect>br,vector<Rect>br2, double gd, Mat im3, Mat im) {
     Rect temp_rect;
     int count = 0;
+    int friend_count = 0;
+    int select = 0;
+    int plate_width = 0;
     
     for(int i=0; i<br2.size(); i++){
         for(int j=0; j<(br2.size()-i);j++){
             if(br2[j].tl().x > br2[j+1].tl().x){
+                
                 temp_rect = br2[j];
                 br2[j] = br2[j+1];
                 br2[j+1] = temp_rect;
+                
             }
         }
+    }
+    for(int i =0; i< br2.size();i++){
+        rectangle(im3, br2[i].tl(), br2[i].br(), Scalar(0,255,0), 1, 8, 0);
         
         for(int j=i+1; j<br2.size();j++){
             dx = abs(br2[j].tl().x - br2[i].tl().x);
+            
+            if(dx > 150) break;
+            
+            dx = abs(br2[j].tl().y - br2[i].tl().y);
+            
+            if(dx == 0) dx = 1;
+            if(dy == 0) dy = 1;
+            
+            gd = dy / dx;
+            cout << gd << endl;
+            
+            if(gd < 0.25){
+                count +=1;
+            }
+        }
+        
+        if(count > friend_count){
+            select = i;
+            friend_count = count;
+            rectangle(im3, br2[select].tl(), br2[select].br(), Scalar(255,0,0), 1, 8, 0);
+            plate_width = dx;
         }
     }
+    
+    rectangle(im3, br2[select].tl(), br2[select].br(), Scalar(0,0,255), 2, 8, 0);
+    line(im3, br2[select].tl(),Point(br2[select].tl().y), Scalar(0,0,255), 1, 8, 0);
+    
+    imshow("Rectangles on origin", im3);
+    waitKey(0);
+    
+    imshow("Region of interest", im(Rect(br2[select].tl().x-20, br2[select].tl().y-20, plate_width+40, plate_width*0.3)));
+    waitKey(0);
+
+    imwrite("/Home/kirist/Downloads/result.jpg",
+            im(Rect(br2[select].tl().x-20, br2[select].tl().y-20, plate_width+40, plate_width*0.3)));
+
+
+    exit(0);
     
 }
